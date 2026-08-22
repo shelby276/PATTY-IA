@@ -35,7 +35,7 @@ if verifier_et_lancer_site_web():
     # =====================================================================
     
     # Intégration sécurisée de votre clé API Google officielle
-    CLE_API = "AQ.Ab8RN6IbGMFKnWMBfhWXRCmPor4uab9i4MmBIUFQ7vowUFOIzg"
+    CLE_API = "AQ.Ab8RN6L51Hcrj5qBodtT0dQEHupTMF1CW6nh5B_Nl5WuSw7x4g"
     
     @st.cache_resource
     def initialiser_cerveau_patty():
