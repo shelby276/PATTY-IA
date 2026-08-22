@@ -1,0 +1,3 @@
+textscikit-learn
+numpy
+streamlit
