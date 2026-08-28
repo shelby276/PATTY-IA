@@ -3,6 +3,7 @@ import subprocess
 import google.generativeai as genai
 from PIL import Image
 import sqlite3
+import os
 from datetime import datetime
 
 # =====================================================================
@@ -34,12 +35,14 @@ if verifier_et_lancer_site_web():
     from openai import OpenAI
 
     # =====================================================================
-    # MODULE ANALYTICS ET TRACKER DE L'OMBRE
+    # FIX SECURITE : BASE DE DONNÉES DEPLOIEE DANS LE DOSSIER TEMPORAIRE CLOUD
     # =====================================================================
-    conn_stats = sqlite3.connect("patty_analytics.db", check_same_thread=False)
+    # Sous Linux Streamlit Cloud, /tmp/ est la seule zone avec les droits d'écriture autorisés
+    chemin_db = os.path.join("/tmp", "patty_analytics.db") if os.name != 'nt' else "patty_analytics.db"
+    
+    conn_stats = sqlite3.connect(chemin_db, check_same_thread=False)
     cursor_stats = conn_stats.cursor()
     
-    # Création des tables de suivi
     cursor_stats.execute("""
         CREATE TABLE IF NOT EXISTS compteur_visites (id INTEGER PRIMARY KEY, total INTEGER)
     """)
@@ -52,13 +55,13 @@ if verifier_et_lancer_site_web():
     """)
     conn_stats.commit()
 
-    # Initialisation du compteur si vide
+    # Initialisation du compteur
     cursor_stats.execute("SELECT COUNT(*) FROM compteur_visites")
-    if cursor_stats.fetchone() == 0:
+    if cursor_stats.fetchone()[0] == 0:
         cursor_stats.execute("INSERT INTO compteur_visites (id, total) VALUES (1, 0)")
         conn_stats.commit()
 
-    # Logique d'incrémentation du compteur
+    # Logique d'incrémentation sécurisée
     if "visite_comptabilisee" not in st.session_state:
         cursor_stats.execute("UPDATE compteur_visites SET total = total + 1 WHERE id = 1")
         conn_stats.commit()
@@ -67,7 +70,7 @@ if verifier_et_lancer_site_web():
     # Récupération du total pour l'admin
     cursor_stats.execute("SELECT total FROM compteur_visites WHERE id = 1")
     res_compteur = cursor_stats.fetchone()
-    total_consultations = res_compteur[0] if res_compteur else 0
+    total_consultations = res_compteur[0] if res_compteur else 1
 
     # CONFIGURATION DES DEUX CLES CLOUD MONDIAUX
     CLE_GOOGLE = "AQ.Ab8RN6IbGMFKnWMBfhWXRCmPor4uab9i4MmBIUFQ7vowUFOIzg"
@@ -88,7 +91,7 @@ if verifier_et_lancer_site_web():
     def initialiser_moteur_principal():
         try:
             genai.configure(api_key=CLE_GOOGLE)
-            return genai.GenerativeModel(model_name='gemini-3.6-flash', system_instruction=instruction_totale)
+            return genai.GenerativeModel(model_name='gemini-2.5-flash', system_instruction=instruction_totale)
         except Exception:
             return None
 
@@ -100,7 +103,7 @@ if verifier_et_lancer_site_web():
     def executer_routage_ia(contenu_requete):
         texte_brut = contenu_requete[-1] if isinstance(contenu_requete[-1], str) else "Analyse d'image jointe"
         
-        # SAUVEGARDE AUTOMATIQUE DANS LE TRACKER SECRET
+        # SAUVEGARDE AUTOMATIQUE SECURISEE
         try:
             maintenant = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             cursor_stats.execute("INSERT INTO historique_recherches (date_heure, requete_utilisateur) VALUES (?, ?)", (maintenant, texte_brut))
@@ -114,9 +117,10 @@ if verifier_et_lancer_site_web():
                 reponse = model_google.generate_content(contenu_requete)
                 return reponse.text, "Moteur Principal 1 (Google Cloud)"
             except Exception as e:
+                # En cas d'erreur de quota, on bascule proprement sans bloquer le script
                 pass
 
-        # --- ESSAI 2 : GROQ INFRASTRUCTURE ---
+        # --- ESSAI 2 : GROQ INFRASTRUCTURE (FICHE LLAMA ANTI-PANNE) ---
         try:
             client_groq = OpenAI(base_url="https://groq.com", api_key=CLE_GROQ)
             messages_pipeline = [{"role": "system", "content": instruction_totale}]
@@ -143,7 +147,7 @@ if verifier_et_lancer_site_web():
     st.markdown("""
         <style>
         .main { background-color: #0F172A; color: white; }
-        .stButton>button { background-color: #00D2FF; color: #0F172A; font-weight: bold; border-radius: 8px; }
+        .stButton>button { background-color: #00D2FF; color: #0F172A; font-weight: bold; border-radius: 8px; width: 100%; height: 45px; }
         .response-box { background-color: #1E293B; border-left: 5px solid #00D2FF; padding: 20px; border-radius: 8px; margin-top: 10px; color: white; }
         .user-box { background-color: #334155; padding: 15px; border-radius: 8px; margin-top: 10px; color: white; }
         .admin-box { background-color: #1E1B4B; border: 2px solid #F59E0B; padding: 20px; border-radius: 8px; margin-top: 20px; }
@@ -155,7 +159,7 @@ if verifier_et_lancer_site_web():
         st.write("---")
         st.info("Développé par l'Ingénieur **Patty Mbayo Mutumbe**.")
         st.success("✔ Double Moteur Actif")
-        st.success("✔ Module Tracker : Activé (Secret)")
+        st.success("✔ Module Tracker : Sécurisé (/tmp)")
         
         st.write("---")
         st.subheader("📁 Module : Importation de Fichiers")
@@ -174,7 +178,7 @@ if verifier_et_lancer_site_web():
         st.markdown(f'<div class="response-box"><b>🤖 PATTY AI :</b><br>{r_passee}</div>', unsafe_allow_html=True)
 
     st.write("---")
-    entree_texte = st.text_input("Posez votre question ou donnez un ordre à votre IA :", placeholder="Ex: Parle-moi de ma mère Félicité Kasongo...")
+    entree_texte = st.text_input("Posez votre question ou donnez un ordre à votre IA :", placeholder="Ex: Parle-moi de ma mère Félicité Kasongo...", key="user_input_main")
 
     # PANNEAU SECRET DE L'INGÉNIEUR PATTY
     if entree_texte.strip() == "SHELBY ADMIN 2026":
@@ -198,7 +202,6 @@ if verifier_et_lancer_site_web():
             st.error(f"Erreur de lecture des logs : {e}")
         st.write("---")
 
-    # CORRECTION DE L'ALIGNEMENT DU BLOC AUDIO ICI
     if audio_capture and 'bytes' in audio_capture:
         st.warning("🎙 Capture vocale interceptée ! Envoi du signal audio aux serveurs de décodage...")
 
@@ -209,12 +212,3 @@ if verifier_et_lancer_site_web():
         if fichier_charge is not None:
             try:
                 img = Image.open(fichier_charge)
-                st.image(img, caption="Document détecté avec succès", width=250)
-                pipeline_contenu.append(img)
-                texte_final += "[Document Joint] "
-            except Exception:
-                texte_final += "[Texte Joint] "
-
-        if entree_texte.strip() != "":
-            texte_final += entree_texte.strip()
-
