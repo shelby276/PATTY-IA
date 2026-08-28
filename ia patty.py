@@ -37,7 +37,6 @@ if verifier_et_lancer_site_web():
     # =====================================================================
     # FIX SECURITE : BASE DE DONNÉES DEPLOIEE DANS LE DOSSIER TEMPORAIRE CLOUD
     # =====================================================================
-    # Sous Linux Streamlit Cloud, /tmp/ est la seule zone avec les droits d'écriture autorisés
     chemin_db = os.path.join("/tmp", "patty_analytics.db") if os.name != 'nt' else "patty_analytics.db"
     
     conn_stats = sqlite3.connect(chemin_db, check_same_thread=False)
@@ -57,7 +56,7 @@ if verifier_et_lancer_site_web():
 
     # Initialisation du compteur
     cursor_stats.execute("SELECT COUNT(*) FROM compteur_visites")
-    if cursor_stats.fetchone()[0] == 0:
+    if cursor_stats.fetchone() == 0:
         cursor_stats.execute("INSERT INTO compteur_visites (id, total) VALUES (1, 0)")
         conn_stats.commit()
 
@@ -116,8 +115,7 @@ if verifier_et_lancer_site_web():
             try:
                 reponse = model_google.generate_content(contenu_requete)
                 return reponse.text, "Moteur Principal 1 (Google Cloud)"
-            except Exception as e:
-                # En cas d'erreur de quota, on bascule proprement sans bloquer le script
+            except Exception:
                 pass
 
         # --- ESSAI 2 : GROQ INFRASTRUCTURE (FICHE LLAMA ANTI-PANNE) ---
@@ -212,3 +210,9 @@ if verifier_et_lancer_site_web():
         if fichier_charge is not None:
             try:
                 img = Image.open(fichier_charge)
+                st.image(img, caption="Document détecté avec succès", width=250)
+                pipeline_contenu.append(img)
+                texte_final += "[Document Joint] "
+            except Exception:
+                texte_final += "[Texte Joint] "
+
