@@ -34,7 +34,7 @@ if verifier_et_lancer_site_web():
     from openai import OpenAI
 
     # =====================================================================
-    # NOUVEAU MODULE : BASE DE DONNÉES ANALYTICS ET TRACKER DE L'OMBRE
+    # MODULE ANALYTICS ET TRACKER DE L'OMBRE
     # =====================================================================
     conn_stats = sqlite3.connect("patty_analytics.db", check_same_thread=False)
     cursor_stats = conn_stats.cursor()
@@ -54,11 +54,11 @@ if verifier_et_lancer_site_web():
 
     # Initialisation du compteur si vide
     cursor_stats.execute("SELECT COUNT(*) FROM compteur_visites")
-    if cursor_stats.fetchone()[0] == 0:
+    if cursor_stats.fetchone() == 0:
         cursor_stats.execute("INSERT INTO compteur_visites (id, total) VALUES (1, 0)")
         conn_stats.commit()
 
-    # Logique d'incrémentation du compteur à chaque chargement de page de l'ombre
+    # Logique d'incrémentation du compteur
     if "visite_comptabilisee" not in st.session_state:
         cursor_stats.execute("UPDATE compteur_visites SET total = total + 1 WHERE id = 1")
         conn_stats.commit()
@@ -66,9 +66,10 @@ if verifier_et_lancer_site_web():
 
     # Récupération du total pour l'admin
     cursor_stats.execute("SELECT total FROM compteur_visites WHERE id = 1")
-    total_consultations = cursor_stats.fetchone()[0]
+    res_compteur = cursor_stats.fetchone()
+    total_consultations = res_compteur[0] if res_compteur else 0
 
-    # CONFIGURATION SÉCURISÉE DES DEUX LOGICIELS CLOUD MONDIAUX
+    # CONFIGURATION DES DEUX CLES CLOUD MONDIAUX
     CLE_GOOGLE = "AQ.Ab8RN6IbGMFKnWMBfhWXRCmPor4uab9i4MmBIUFQ7vowUFOIzg"
     CLE_GROQ = "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"
 
@@ -97,10 +98,9 @@ if verifier_et_lancer_site_web():
         st.session_state.chat_history = []
 
     def executer_routage_ia(contenu_requete):
-        """Routeur intelligent : Tente Google Gemini, bascule sur Groq Llama en cas d'erreur 429."""
         texte_brut = contenu_requete[-1] if isinstance(contenu_requete[-1], str) else "Analyse d'image jointe"
         
-        # SAUVEGARDE AUTOMATIQUE DE LA REQUETE DANS LE TRACKER SECRET
+        # SAUVEGARDE AUTOMATIQUE DANS LE TRACKER SECRET
         try:
             maintenant = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             cursor_stats.execute("INSERT INTO historique_recherches (date_heure, requete_utilisateur) VALUES (?, ?)", (maintenant, texte_brut))
@@ -114,12 +114,9 @@ if verifier_et_lancer_site_web():
                 reponse = model_google.generate_content(contenu_requete)
                 return reponse.text, "Moteur Principal 1 (Google Cloud)"
             except Exception as e:
-                if "429" in str(e) or "quota" in str(e).lower():
-                    st.warning("⚠️ Quota quotidien Google atteint (20 requêtes). Connexion au réseau Groq...")
-                else:
-                    st.warning("⚠️ Redirection technique vers l'infrastructure de secours...")
+                pass
 
-        # --- ESSAI 2 : GROQ INFRASTRUCTURE (Fiche Llama 3.3 Anti-Panne) ---
+        # --- ESSAI 2 : GROQ INFRASTRUCTURE ---
         try:
             client_groq = OpenAI(base_url="https://groq.com", api_key=CLE_GROQ)
             messages_pipeline = [{"role": "system", "content": instruction_totale}]
@@ -157,7 +154,7 @@ if verifier_et_lancer_site_web():
         st.title("🤖 PATTY AI V3 ULTIME")
         st.write("---")
         st.info("Développé par l'Ingénieur **Patty Mbayo Mutumbe**.")
-        st.success("✔ Double Moteur Actif (Google + Groq)")
+        st.success("✔ Double Moteur Actif")
         st.success("✔ Module Tracker : Activé (Secret)")
         
         st.write("---")
@@ -172,7 +169,6 @@ if verifier_et_lancer_site_web():
     st.subheader("Plateforme de traitement sémantique dotée de mémoire et d'un routeur anti-panne")
     st.write("---")
 
-    # Affichage de l'historique de discussion type ChatGPT
     for q_passee, r_passee in st.session_state.chat_history:
         st.markdown(f'<div class="user-box"><b>👤 VOUS :</b><br>{q_passee}</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="response-box"><b>🤖 PATTY AI :</b><br>{r_passee}</div>', unsafe_allow_html=True)
@@ -180,9 +176,7 @@ if verifier_et_lancer_site_web():
     st.write("---")
     entree_texte = st.text_input("Posez votre question ou donnez un ordre à votre IA :", placeholder="Ex: Parle-moi de ma mère Félicité Kasongo...")
 
-    # =====================================================================
-    # NOUVEAU MODULE VISUEL : LE PANNEAU SECRET DE L'INGÉNIEUR PATTY
-    # =====================================================================
+    # PANNEAU SECRET DE L'INGÉNIEUR PATTY
     if entree_texte.strip() == "SHELBY ADMIN 2026":
         st.markdown(f"""
         <div class="admin-box">
@@ -196,12 +190,31 @@ if verifier_et_lancer_site_web():
             cursor_stats.execute("SELECT date_heure, requete_utilisateur FROM historique_recherches ORDER BY id DESC")
             lignes_logs = cursor_stats.fetchall()
             if lignes_logs:
-                for horodatage, texte_req in lignes_logs:
-                    st.text(f"⏱ [{horodatage}] -> {texte_req}")
+                for horodatage, text_req in lignes_logs:
+                    st.text(f"⏱ [{horodatage}] -> {text_req}")
             else:
                 st.info("Aucune recherche n'a encore été effectuée par un utilisateur.")
         except Exception as e:
             st.error(f"Erreur de lecture des logs : {e}")
         st.write("---")
 
+    # CORRECTION DE L'ALIGNEMENT DU BLOC AUDIO ICI
     if audio_capture and 'bytes' in audio_capture:
+        st.warning("🎙 Capture vocale interceptée ! Envoi du signal audio aux serveurs de décodage...")
+
+    if st.button("INTERROGER LE CERVEAU PATTY AI"):
+        pipeline_contenu = []
+        texte_final = ""
+
+        if fichier_charge is not None:
+            try:
+                img = Image.open(fichier_charge)
+                st.image(img, caption="Document détecté avec succès", width=250)
+                pipeline_contenu.append(img)
+                texte_final += "[Document Joint] "
+            except Exception:
+                texte_final += "[Texte Joint] "
+
+        if entree_texte.strip() != "":
+            texte_final += entree_texte.strip()
+
