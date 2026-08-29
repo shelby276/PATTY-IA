@@ -2,7 +2,6 @@ import sys
 import subprocess
 import google.generativeai as genai
 from PIL import Image
-from openai import OpenAI
 
 # =====================================================================
 # PARTIE 1 : VERIFICATION ET AUTO-LANCEMENT DU SERVEUR WEB
@@ -12,7 +11,7 @@ def verifier_et_lancer_site_web():
         import streamlit as st
         from streamlit_mic_recorder import mic_recorder
     except ImportError:
-        print("[ERREUR] Des modules sont manquants.")
+        print("[ERREUR] Des modules sont manquants pour la V3 Pro.")
         return False
 
     try:
@@ -22,7 +21,7 @@ def verifier_et_lancer_site_web():
     except ImportError:
         pass
 
-    print("=== CONFIGURATION DE PATTY AI V4 FINALE ===")
+    print("=== CONFIGURATION DE PATTY AI V3 FINALE ===")
     subprocess.Popen([sys.executable, "-m", "streamlit", "run", sys.argv])
     return False
 
@@ -30,14 +29,13 @@ if verifier_et_lancer_site_web():
     import streamlit as st
     from streamlit_mic_recorder import mic_recorder
 
-    # VOS DEUX CLES API PERSONNELLES ET COMPATIBLES
+    # TA CLE GOOGLE GEMINI OFFICIELLE (100% VALIDE ET FORCEE)
     CLE_GOOGLE = "AQ.Ab8RN6IHl4qS-RId9st4ZAEw4-eT7l2O0fLmyGk6s_WLENT0lQ"
-    CLE_GROQ = "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"
-    
+
     # DIRECTIVES D'IDENTITÉ ET DE MÉMOIRE FAMILIALE
     instruction_totale = (
-        "Tu es PATTY AI V4, une intelligence artificielle universelle de niveau industriel. "
-        "Ton créateur et administrateur suprême est l'Ingénieur Patty Mbayo Mutumbe, directeur de Shelby Digital Hub. "
+        "Tu es PATTY AI V3, une intelligence artificielle universelle et personnalisée. "
+        "Ton créateur et administrateur suprême est l'Ingénieur Patty Mbayo Mutumbe. "
         "Tu possèdes une mémoire familiale intégrée : "
         "1. Son père s'appelle Gilbert Mbayo. S'il apparaît en photo ou en texte, salue son autorité avec un vibrant hommage. "
         "2. Sa mère s'appelle Félicité Kasongo. Salue son nom avec le plus grand respect en tant que mère de ton créateur. "
@@ -47,43 +45,22 @@ if verifier_et_lancer_site_web():
 
     try:
         genai.configure(api_key=CLE_GOOGLE)
-        model_final = genai.GenerativeModel(model_name='gemini-2.5-flash', system_instruction=instruction_totale)
+        model_google = genai.GenerativeModel(model_name='gemini-1.5-flash', system_instruction=instruction_totale)
     except Exception:
-        model_final = None
+        model_google = None
 
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
-    def executer_moteur_universel(contenu_pipeline):
-        texte_brut = contenu_pipeline[-1] if isinstance(contenu_pipeline[-1], str) else "Analyse d'image"
-        
-        # --- ESSAI 1 : GOOGLE GEMINI (VOTRE CLÉ) ---
-        if model_final:
+    def executer_moteur_ia(contenu_requete):
+        """Moteur direct basé sur Gemini, nettoyé de tout conflit HTTP 405."""
+        if model_google:
             try:
-                reponse = model_final.generate_content(contenu_pipeline)
+                reponse = model_google.generate_content(contenu_requete)
                 return reponse.text
-            except Exception:
-                pass
-
-        # --- ESSAI 2 : GROQ NETWORK (CORRECTION FORCEE DU MODELE) ---
-        try:
-            client_groq = OpenAI(base_url="https://groq.com", api_key=CLE_GROQ)
-            messages_pipeline = [{"role": "system", "content": instruction_totale}]
-            
-            for h_user, h_bot in st.session_state.chat_history:
-                messages_pipeline.append({"role": "user", "content": h_user})
-                messages_pipeline.append({"role": "assistant", "content": h_bot})
-            
-            messages_pipeline.append({"role": "user", "content": texte_brut})
-            
-            # Correction : Utilisation du modèle de secours standard accepté en méthode POST
-            chat_completion = client_groq.chat.completions.create(
-                messages=messages_pipeline,
-                model="llama3-8b-8192"
-            )
-            return chat_completion.choices.message.content
-        except Exception as err:
-            return f"Erreur de communication avec les serveurs de secours : {err}"
+            except Exception as e:
+                return f"Erreur de traitement : {e}"
+        return "Le modèle d'intelligence artificielle n'est pas initialisé."
 
     # =====================================================================
     # INTERFACE WEB ORIGINAL "NETFLIX / MOVIE BOX" DARK MODE
@@ -100,10 +77,10 @@ if verifier_et_lancer_site_web():
         """, unsafe_allow_html=True)
 
     with st.sidebar:
-        st.title("🤖 PATTY AI V4")
+        st.title("🤖 PATTY AI V3")
         st.write("---")
         st.info("Développé par l'Ingénieur **Patty Mbayo Mutumbe**.")
-        st.success("✔ Double Moteur Souverain : Actif")
+        st.success("✔ Moteur Cloud Actif")
         
         st.write("---")
         st.subheader("📁 Module : Importation de Fichiers")
@@ -114,7 +91,7 @@ if verifier_et_lancer_site_web():
         audio_capture = mic_recorder(start_prompt="🔴 Enregistrer votre voix", stop_prompt="🟢 Arrêter", key='patty_recorder')
 
     st.title("Système d'Intelligence Artificielle PATTY AI")
-    st.subheader("Plateforme de traitement sémantique souveraine propulsée par Shelby Digital Hub")
+    st.subheader("Plateforme de traitement sémantique dotée de mémoire familiale")
     st.write("---")
 
     for q_passee, r_passee in st.session_state.chat_history:
@@ -146,8 +123,8 @@ if verifier_et_lancer_site_web():
         if texte_final == "":
             st.warning("Veuillez saisir une vraie question s'il vous plaît.")
         else:
-            with st.spinner("Patty V4 est en train de réfléchir..."):
+            with st.spinner("Patty est en train de réfléchir..."):
                 pipeline_contenu.append(texte_final)
-                reponse_texte = executer_moteur_universel(pipeline_contenu)
-                st.session_state.chat_history.append((texte_final, r_passee := reponse_texte))
+                reponse_texte = executer_moteur_ia(pipeline_contenu)
+                st.session_state.chat_history.append((texte_final, reponse_texte))
                 st.rerun()
