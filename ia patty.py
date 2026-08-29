@@ -55,7 +55,7 @@ if verifier_et_lancer_site_web():
         st.session_state.chat_history = []
 
     def executer_moteur_universel(contenu_pipeline):
-        texte_brut = contenu_pipeline[-1] if isinstance(contenu_pipeline[-1], str) else "Analyse d'image"
+        texte_brut = contenu_pipeline[-1] if isinstance(contenu_requete := contenu_pipeline[-1], str) else "Analyse d'image"
         
         # --- ESSAI 1 : GOOGLE GEMINI (VOTRE CLÉ) ---
         if model_final:
@@ -65,7 +65,7 @@ if verifier_et_lancer_site_web():
             except Exception:
                 pass
 
-        # --- ESSAI 2 : GROQ NETWORK (VOTRE CLÉ DE SECOURS STABLE) ---
+        # --- ESSAI 2 : GROQ NETWORK (VOTRE CLÉ DE SECOURS CORRIGÉE) ---
         try:
             client_groq = OpenAI(base_url="https://groq.com", api_key=CLE_GROQ)
             messages_pipeline = [{"role": "system", "content": instruction_totale}]
@@ -76,9 +76,10 @@ if verifier_et_lancer_site_web():
             
             messages_pipeline.append({"role": "user", "content": texte_brut})
             
+            # Correction cruciale : Passage au modèle actif et stable de Groq
             chat_completion = client_groq.chat.completions.create(
                 messages=messages_pipeline,
-                model="llama3-70b-8192"
+                model="llama-3.3-70b-versatile"
             )
             return chat_completion.choices.message.content
         except Exception as err:
