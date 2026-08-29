@@ -1,7 +1,8 @@
 import sys
 import subprocess
-from PIL import Image
 import google.generativeai as genai
+from PIL import Image
+from openai import OpenAI
 
 # =====================================================================
 # PARTIE 1 : VERIFICATION ET AUTO-LANCEMENT DU SERVEUR WEB
@@ -29,8 +30,9 @@ if verifier_et_lancer_site_web():
     import streamlit as st
     from streamlit_mic_recorder import mic_recorder
 
-    # RECONSTITUTION DU CLIENT GOOGLE AVEC UNE CLE VERIFIEE SANS BLOCAGE
-    CLE_FINALE_EMERGENCE = "AIzaSyD-L_7H3_eUorT_t9X8C2T6B8WfR_3Yv9Pq5"
+    # VOS DEUX CLES API PERSONNELLES ET COMPATIBLES
+    CLE_GOOGLE = "AQ.Ab8RN6IHl4qS-RId9st4ZAEw4-eT7l2O0fLmyGk6s_WLENT0lQ"
+    CLE_GROQ = "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"
     
     # DIRECTIVES D'IDENTITÉ ET DE MÉMOIRE FAMILIALE
     instruction_totale = (
@@ -44,7 +46,7 @@ if verifier_et_lancer_site_web():
     )
 
     try:
-        genai.configure(api_key=CLE_FINALE_EMERGENCE)
+        genai.configure(api_key=CLE_GOOGLE)
         model_final = genai.GenerativeModel(model_name='gemini-2.5-flash', system_instruction=instruction_totale)
     except Exception:
         model_final = None
@@ -53,14 +55,34 @@ if verifier_et_lancer_site_web():
         st.session_state.chat_history = []
 
     def executer_moteur_universel(contenu_pipeline):
-        """Moteur stable basé sur Google Gemini."""
+        texte_brut = contenu_pipeline[-1] if isinstance(contenu_pipeline[-1], str) else "Analyse d'image"
+        
+        # --- ESSAI 1 : GOOGLE GEMINI (VOTRE CLÉ) ---
         if model_final:
             try:
                 reponse = model_final.generate_content(contenu_pipeline)
                 return reponse.text
-            except Exception as err:
-                return f"Une erreur technique de synchronisation est survenue : {err}"
-        return "Le cerveau principal n'est pas encore initialisé."
+            except Exception:
+                pass
+
+        # --- ESSAI 2 : GROQ NETWORK (VOTRE CLÉ DE SECOURS STABLE) ---
+        try:
+            client_groq = OpenAI(base_url="https://groq.com", api_key=CLE_GROQ)
+            messages_pipeline = [{"role": "system", "content": instruction_totale}]
+            
+            for h_user, h_bot in st.session_state.chat_history:
+                messages_pipeline.append({"role": "user", "content": h_user})
+                messages_pipeline.append({"role": "assistant", "content": h_bot})
+            
+            messages_pipeline.append({"role": "user", "content": texte_brut})
+            
+            chat_completion = client_groq.chat.completions.create(
+                messages=messages_pipeline,
+                model="llama3-70b-8192"
+            )
+            return chat_completion.choices.message.content
+        except Exception as err:
+            return f"Erreur de communication avec les serveurs de secours : {err}"
 
     # =====================================================================
     # INTERFACE WEB ORIGINAL "NETFLIX / MOVIE BOX" DARK MODE
@@ -80,8 +102,7 @@ if verifier_et_lancer_site_web():
         st.title("🤖 PATTY AI V4")
         st.write("---")
         st.info("Développé par l'Ingénieur **Patty Mbayo Mutumbe**.")
-        st.success("✔ Moteur Cloud Universel : Actif")
-        st.success("✔ Protection anti-panne : Armée")
+        st.success("✔ Double Moteur Souverain : Actif")
         
         st.write("---")
         st.subheader("📁 Module : Importation de Fichiers")
