@@ -1,7 +1,8 @@
 import sys
 import subprocess
-import google.generativeai as genai
 from PIL import Image
+from google import genai
+from google.genai import types
 from openai import OpenAI
 
 # =====================================================================
@@ -48,12 +49,12 @@ if verifier_et_lancer_site_web():
     @st.cache_resource
     def initialiser_moteur_principal():
         try:
-            genai.configure(api_key=CLE_GOOGLE)
-            return genai.GenerativeModel(model_name='gemini-2.5-flash', system_instruction=instruction_totale)
+            # Passage au nouveau client officiel unifié de Google
+            return genai.Client(api_key=CLE_GOOGLE)
         except Exception:
             return None
 
-    model_google = initialiser_moteur_principal()
+    client_google = initialiser_moteur_principal()
 
     # Initialisation des mémoires de session de l'ombre
     if "chat_history" not in st.session_state:
@@ -63,24 +64,29 @@ if verifier_et_lancer_site_web():
     if "historique_secret_admin" not in st.session_state:
         st.session_state.historique_secret_admin = []
 
-    def executer_routage_ia(contenu_requete):
-        texte_brut = contenu_requete[-1] if isinstance(contenu_requete[-1], str) else "Analyse d'image jointe"
-        
+    def executer_routage_ia(contene_texte_brut, image_pil=None):
         # Enregistrement immédiat dans l'historique de l'ombre
-        st.session_state.historique_secret_admin.append(texte_brut)
+        st.session_state.historique_secret_admin.append(contene_texte_brut)
         st.session_state.compteur_global += 1
         
-        # --- ESSAI 1 : GOOGLE GEMINI ---
-        if model_google:
+        # --- ESSAI 1 : NOUVEAU MOTEUR GOOGLE GEMINI ---
+        if client_google:
             try:
-                reponse = model_google.generate_content(contenu_requete)
+                contenu_pipeline = [contene_texte_brut]
+                if image_pil:
+                    contenu_pipeline.append(image_pil)
+                
+                reponse = client_google.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=contenu_pipeline,
+                    config=types.GenerateContentConfig(system_instruction=instruction_totale)
+                )
                 return reponse.text, "Moteur Principal 1 (Google Cloud)"
             except Exception:
                 pass
 
-        # --- ESSAI 2 : GROQ INFRASTRUCTURE (FIX BASE_URL ET MODELE NETTOYÉ) ---
+        # --- ESSAI 2 : INFRASTRUCTURE DE SECOURS GROQ ---
         try:
-            # Remplacement par l'URL racine stricte pour empêcher l'erreur 405 Method Not Allowed
             client_groq = OpenAI(base_url="https://groq.com", api_key=CLE_GROQ)
             messages_pipeline = [{"role": "system", "content": instruction_totale}]
             
@@ -88,7 +94,7 @@ if verifier_et_lancer_site_web():
                 messages_pipeline.append({"role": "user", "content": h_user})
                 messages_pipeline.append({"role": "assistant", "content": h_bot})
             
-            messages_pipeline.append({"role": "user", "content": texte_brut})
+            messages_pipeline.append({"role": "user", "content": contene_texte_brut})
             
             chat_completion = client_groq.chat.completions.create(
                 messages=messages_pipeline,
@@ -162,26 +168,22 @@ if verifier_et_lancer_site_web():
         st.warning("🎙 Capture vocale interceptée !")
 
     if st.button("INTERROGER LE CERVEAU PATTY AI"):
-        pipeline_contenu = []
-        texte_final = ""
+        texte_final = entree_texte.strip() if entree_texte.strip() != "" else ""
+        img_object = None
 
         if fichier_charge is not None:
             try:
-                img = Image.open(fichier_charge)
-                st.image(img, caption="Document détecté avec succès", width=250)
-                pipeline_contenu.append(img)
-                texte_final += "[Document Joint] "
+                img_object = Image.open(fichier_charge)
+                st.image(img_object, caption="Document détecté avec succès", width=250)
+                if texte_final == "":
+                    texte_final = "Analyse cette image."
             except Exception:
                 pass
-
-        if entree_texte.strip() != "":
-            texte_final += entree_texte.strip()
 
         if texte_final == "":
             st.warning("Veuillez saisir une vraie question s'il vous plaît.")
         else:
             with st.spinner("Patty est en train de réfléchir..."):
-                pipeline_contenu.append(texte_final)
-                reponse_texte, moteur_web = executer_routage_ia(pipeline_contenu)
+                reponse_texte, moteur_web = executer_routage_ia(texte_final, img_object)
                 st.session_state.chat_history.append((texte_final, reponse_texte))
                 st.rerun()
