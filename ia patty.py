@@ -2,9 +2,7 @@ import sys
 import subprocess
 import google.generativeai as genai
 from PIL import Image
-import sqlite3
-import os
-from datetime import datetime
+from openai import OpenAI
 
 # =====================================================================
 # PARTIE 1 : VERIFICATION ET AUTO-LANCEMENT DU SERVEUR WEB
@@ -13,7 +11,6 @@ def verifier_et_lancer_site_web():
     try:
         import streamlit as st
         from streamlit_mic_recorder import mic_recorder
-        from openai import OpenAI
     except ImportError:
         print("[ERREUR] Des modules sont manquants pour la V3 Pro.")
         return False
@@ -32,44 +29,6 @@ def verifier_et_lancer_site_web():
 if verifier_et_lancer_site_web():
     import streamlit as st
     from streamlit_mic_recorder import mic_recorder
-    from openai import OpenAI
-
-    # =====================================================================
-    # FIX SECURITE : BASE DE DONNÉES DEPLOIEE DANS LE DOSSIER TEMPORAIRE CLOUD
-    # =====================================================================
-    chemin_db = os.path.join("/tmp", "patty_analytics.db") if os.name != 'nt' else "patty_analytics.db"
-    
-    conn_stats = sqlite3.connect(chemin_db, check_same_thread=False)
-    cursor_stats = conn_stats.cursor()
-    
-    cursor_stats.execute("""
-        CREATE TABLE IF NOT EXISTS compteur_visites (id INTEGER PRIMARY KEY, total INTEGER)
-    """)
-    cursor_stats.execute("""
-        CREATE TABLE IF NOT EXISTS historique_recherches (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, 
-            date_heure TEXT, 
-            requete_utilisateur TEXT
-        )
-    """)
-    conn_stats.commit()
-
-    # Initialisation du compteur
-    cursor_stats.execute("SELECT COUNT(*) FROM compteur_visites")
-    if cursor_stats.fetchone() == 0:
-        cursor_stats.execute("INSERT INTO compteur_visites (id, total) VALUES (1, 0)")
-        conn_stats.commit()
-
-    # Logique d'incrémentation sécurisée
-    if "visite_comptabilisee" not in st.session_state:
-        cursor_stats.execute("UPDATE compteur_visites SET total = total + 1 WHERE id = 1")
-        conn_stats.commit()
-        st.session_state.visite_comptabilisee = True
-
-    # Récupération du total pour l'admin
-    cursor_stats.execute("SELECT total FROM compteur_visites WHERE id = 1")
-    res_compteur = cursor_stats.fetchone()
-    total_consultations = res_compteur[0] if res_compteur else 1
 
     # CONFIGURATION DES DEUX CLES CLOUD MONDIAUX
     CLE_GOOGLE = "AQ.Ab8RN6IbGMFKnWMBfhWXRCmPor4uab9i4MmBIUFQ7vowUFOIzg"
@@ -101,14 +60,6 @@ if verifier_et_lancer_site_web():
 
     def executer_routage_ia(contenu_requete):
         texte_brut = contenu_requete[-1] if isinstance(contenu_requete[-1], str) else "Analyse d'image jointe"
-        
-        # SAUVEGARDE AUTOMATIQUE SECURISEE
-        try:
-            maintenant = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            cursor_stats.execute("INSERT INTO historique_recherches (date_heure, requete_utilisateur) VALUES (?, ?)", (maintenant, texte_brut))
-            conn_stats.commit()
-        except Exception:
-            pass
         
         # --- ESSAI 1 : GOOGLE GEMINI ---
         if model_google:
@@ -148,16 +99,14 @@ if verifier_et_lancer_site_web():
         .stButton>button { background-color: #00D2FF; color: #0F172A; font-weight: bold; border-radius: 8px; width: 100%; height: 45px; }
         .response-box { background-color: #1E293B; border-left: 5px solid #00D2FF; padding: 20px; border-radius: 8px; margin-top: 10px; color: white; }
         .user-box { background-color: #334155; padding: 15px; border-radius: 8px; margin-top: 10px; color: white; }
-        .admin-box { background-color: #1E1B4B; border: 2px solid #F59E0B; padding: 20px; border-radius: 8px; margin-top: 20px; }
         </style>
         """, unsafe_allow_html=True)
 
     with st.sidebar:
-        st.title("🤖 PATTY AI V3 ULTIME")
+        st.title("🤖 PATTY AI V3")
         st.write("---")
         st.info("Développé par l'Ingénieur **Patty Mbayo Mutumbe**.")
         st.success("✔ Double Moteur Actif")
-        st.success("✔ Module Tracker : Sécurisé (/tmp)")
         
         st.write("---")
         st.subheader("📁 Module : Importation de Fichiers")
@@ -178,28 +127,6 @@ if verifier_et_lancer_site_web():
     st.write("---")
     entree_texte = st.text_input("Posez votre question ou donnez un ordre à votre IA :", placeholder="Ex: Parle-moi de ma mère Félicité Kasongo...", key="user_input_main")
 
-    # PANNEAU SECRET DE L'INGÉNIEUR PATTY
-    if entree_texte.strip() == "SHELBY ADMIN 2026":
-        st.markdown(f"""
-        <div class="admin-box">
-            <h2 style="color: #F59E0B; margin-top:0;">🔑 CONSOLE DE SUPERVEILLANCE ADMIN - PATTY MBAYO</h2>
-            <p style="font-size: 18px;">Nombre total de consultations de la plateforme : <b style="color: #00D2FF; font-size: 24px;">{total_consultations}</b> visites</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.subheader("📋 Historique complet des recherches anonymes de vos utilisateurs :")
-        try:
-            cursor_stats.execute("SELECT date_heure, requete_utilisateur FROM historique_recherches ORDER BY id DESC")
-            lignes_logs = cursor_stats.fetchall()
-            if lignes_logs:
-                for horodatage, text_req in lignes_logs:
-                    st.text(f"⏱ [{horodatage}] -> {text_req}")
-            else:
-                st.info("Aucune recherche n'a encore été effectuée par un utilisateur.")
-        except Exception as e:
-            st.error(f"Erreur de lecture des logs : {e}")
-        st.write("---")
-
     if audio_capture and 'bytes' in audio_capture:
         st.warning("🎙 Capture vocale interceptée ! Envoi du signal audio aux serveurs de décodage...")
 
@@ -214,5 +141,16 @@ if verifier_et_lancer_site_web():
                 pipeline_contenu.append(img)
                 texte_final += "[Document Joint] "
             except Exception:
-                texte_final += "[Texte Joint] "
+                pass
 
+        if entree_texte.strip() != "":
+            texte_final += entree_texte.strip()
+
+        if texte_final == "":
+            st.warning("Veuillez saisir une vraie question s'il vous plaît.")
+        else:
+            with st.spinner("Patty est en train de réfléchir..."):
+                pipeline_contenu.append(texte_final)
+                reponse_texte, moteur_web = executer_routage_ia(pipeline_contenu)
+                st.session_state.chat_history.append((texte_final, reponse_texte))
+                st.rerun()
