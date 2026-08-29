@@ -69,7 +69,7 @@ if verifier_et_lancer_site_web():
             except Exception:
                 pass
 
-        # --- ESSAI 2 : GROQ INFRASTRUCTURE (CORRECTION CHIRURGICALE DE L'URL) ---
+        # --- ESSAI 2 : GROQ INFRASTRUCTURE (CORRECTION DU NOM DU MODELE) ---
         try:
             client_groq = OpenAI(base_url="https://groq.com", api_key=CLE_GROQ)
             messages_pipeline = [{"role": "system", "content": instruction_totale}]
@@ -80,9 +80,10 @@ if verifier_et_lancer_site_web():
             
             messages_pipeline.append({"role": "user", "content": texte_brut})
             
+            # Correction : Utilisation du modèle stable 'llama-3.3-70b-specdec' ou 'llama3-70b-8192'
             chat_completion = client_groq.chat.completions.create(
                 messages=messages_pipeline,
-                model="llama-3.3-70b-versatile"
+                model="llama3-70b-8192"
             )
             return chat_completion.choices.message.content, "Moteur de Secours 2 (Groq Llama Engine)"
         except Exception as err:
@@ -120,7 +121,6 @@ if verifier_et_lancer_site_web():
     st.subheader("Plateforme de traitement sémantique dotée de mémoire et d'un routeur anti-panne")
     st.write("---")
 
-    # Zone d'affichage dynamique de l'historique
     cadre_discussion = st.container()
     with cadre_discussion:
         for q_passee, r_passee in st.session_state.chat_history:
@@ -156,5 +156,4 @@ if verifier_et_lancer_site_web():
                 pipeline_contenu.append(texte_final)
                 reponse_texte, moteur_web = executer_routage_ia(pipeline_contenu)
                 st.session_state.chat_history.append((texte_final, reponse_texte))
-                st.initial_sidebar_state = "expanded"
                 st.rerun()
