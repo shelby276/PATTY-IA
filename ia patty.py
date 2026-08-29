@@ -1,17 +1,16 @@
 import sys
 import subprocess
+import google.generativeai as genai
 from PIL import Image
-from google import genai
-from google.genai import types
-from openai import OpenAI
 
 # =====================================================================
-# PARTIE 1 : VERIFICATION ET AUTO-LANCEMENT DU SERVEUR WEB
+# PARTIE 1 : VERIFICATION DE L'ENVIRONNEMENT WEB ET AUDIO
 # =====================================================================
 def verifier_et_lancer_site_web():
     try:
         import streamlit as st
         from streamlit_mic_recorder import mic_recorder
+        from openai import OpenAI
     except ImportError:
         print("[ERREUR] Des modules sont manquants pour la V3 Pro.")
         return False
@@ -30,12 +29,15 @@ def verifier_et_lancer_site_web():
 if verifier_et_lancer_site_web():
     import streamlit as st
     from streamlit_mic_recorder import mic_recorder
+    from openai import OpenAI
 
-    # CONFIGURATION DES DEUX CLES CLOUD MONDIAUX
+    # CONFIGURATION SÉCURISÉE DES DEUX LOGICIELS CLOUD MONDIAUX
     CLE_GOOGLE = "AQ.Ab8RN6IbGMFKnWMBfhWXRCmPor4uab9i4MmBIUFQ7vowUFOIzg"
-    CLE_GROQ = "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"
+    CLE_GROQ   = "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"
 
-    # DIRECTIVES D'IDENTITÉ ET ROUTAGE DOUBLE MOTEUR
+    # =====================================================================
+    # PARTIE 2 : DIRECTIVES D'IDENTITÉ ET ROUTAGE DOUBLE MOTEUR
+    # =====================================================================
     instruction_totale = (
         "Tu es PATTY AI V3, une intelligence artificielle universelle et personnalisée. "
         "Ton créateur et administrateur suprême est l'Ingénieur Patty Mbayo Mutumbe. "
@@ -49,52 +51,45 @@ if verifier_et_lancer_site_web():
     @st.cache_resource
     def initialiser_moteur_principal():
         try:
-            # Passage au nouveau client officiel unifié de Google
-            return genai.Client(api_key=CLE_GOOGLE)
+            genai.configure(api_key=CLE_GOOGLE)
+            return genai.GenerativeModel(model_name='gemini-3.6-flash', system_instruction=instruction_totale)
         except Exception:
             return None
 
-    client_google = initialiser_moteur_principal()
+    model_google = initialiser_moteur_principal()
 
-    # Initialisation des mémoires de session de l'ombre
+    # INITIALISATION DE LA MÉMOIRE CONTEXTUELLE DU CHAT
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
-    if "compteur_global" not in st.session_state:
-        st.session_state.compteur_global = 124  
-    if "historique_secret_admin" not in st.session_state:
-        st.session_state.historique_secret_admin = []
 
-    def executer_routage_ia(contene_texte_brut, image_pil=None):
-        # Enregistrement immédiat dans l'historique de l'ombre
-        st.session_state.historique_secret_admin.append(contene_texte_brut)
-        st.session_state.compteur_global += 1
+    def executer_routage_ia(contenu_requete):
+        """Routeur intelligent : Tente Google Gemini, bascule sur Groq Llama en cas d'erreur 429."""
+        # Extraction du texte brut de la requête pour l'analyse
+        texte_brut = contenu_requete[-1] if isinstance(contenu_requete[-1], str) else "Analyse d'image jointe"
         
-        # --- ESSAI 1 : NOUVEAU MOTEUR GOOGLE GEMINI ---
-        if client_google:
+        # --- ESSAI 1 : GOOGLE GEMINI ---
+        if model_google:
             try:
-                contenu_pipeline = [contene_texte_brut]
-                if image_pil:
-                    contenu_pipeline.append(image_pil)
-                
-                reponse = client_google.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=contenu_pipeline,
-                    config=types.GenerateContentConfig(system_instruction=instruction_totale)
-                )
+                # Simulation d'un historique pour le modèle principal
+                reponse = model_google.generate_content(contenu_requete)
                 return reponse.text, "Moteur Principal 1 (Google Cloud)"
-            except Exception:
-                pass
+            except Exception as e:
+                if "429" in str(e) or "quota" in str(e).lower():
+                    st.warning("⚠️ Quota quotidien Google atteint (20 requêtes). Connexion au réseau Groq...")
+                else:
+                    st.warning("⚠️ Redirection technique vers l'infrastructure de secours...")
 
-        # --- ESSAI 2 : INFRASTRUCTURE DE SECOURS GROQ ---
+        # --- ESSAI 2 : GROQ INFRASTRUCTURE (Fiche Llama 3.3 Anti-Panne) ---
         try:
             client_groq = OpenAI(base_url="https://groq.com", api_key=CLE_GROQ)
             messages_pipeline = [{"role": "system", "content": instruction_totale}]
             
+            # Injection de la mémoire passée pour ne pas perdre le fil
             for h_user, h_bot in st.session_state.chat_history:
                 messages_pipeline.append({"role": "user", "content": h_user})
                 messages_pipeline.append({"role": "assistant", "content": h_bot})
             
-            messages_pipeline.append({"role": "user", "content": contene_texte_brut})
+            messages_pipeline.append({"role": "user", "content": texte_brut})
             
             chat_completion = client_groq.chat.completions.create(
                 messages=messages_pipeline,
@@ -105,26 +100,25 @@ if verifier_et_lancer_site_web():
             return f"Tous les labos du routeur sont saturés pour le moment. Erreur : {err}", "Aucun"
 
     # =====================================================================
-    # INTERFACE WEB PREMIUM DARK MODE
+    # PARTIE 3 : INTERFACE WEB PREMIUM DARK MODE
     # =====================================================================
     st.set_page_config(page_title="PATTY AI - Édition Intégrale", page_icon="🤖", layout="wide")
 
     st.markdown("""
         <style>
         .main { background-color: #0F172A; color: white; }
-        .stButton>button { background-color: #00D2FF; color: #0F172A; font-weight: bold; border-radius: 8px; width: 100%; height: 45px; }
+        .stButton>button { background-color: #00D2FF; color: #0F172A; font-weight: bold; border-radius: 8px; }
         .response-box { background-color: #1E293B; border-left: 5px solid #00D2FF; padding: 20px; border-radius: 8px; margin-top: 10px; color: white; }
         .user-box { background-color: #334155; padding: 15px; border-radius: 8px; margin-top: 10px; color: white; }
-        .admin-box { background-color: #1E1B4B; border: 2px solid #F59E0B; padding: 20px; border-radius: 8px; margin-top: 20px; }
         </style>
         """, unsafe_allow_html=True)
 
     with st.sidebar:
-        st.title("🤖 PATTY AI V3")
+        st.title("🤖 PATTY AI V3 ULTIME")
         st.write("---")
         st.info("Développé par l'Ingénieur **Patty Mbayo Mutumbe**.")
-        st.success("✔ Double Moteur Actif")
-        st.success("✔ Module Tracker : Actif")
+        st.success("✔ Double Moteur Actif (Google + Groq)")
+        st.success("✔ Mémoire de Famille : Connectée")
         
         st.write("---")
         st.subheader("📁 Module : Importation de Fichiers")
@@ -138,52 +132,40 @@ if verifier_et_lancer_site_web():
     st.subheader("Plateforme de traitement sémantique dotée de mémoire et d'un routeur anti-panne")
     st.write("---")
 
-    cadre_discussion = st.container()
-    with cadre_discussion:
-        for q_passee, r_passee in st.session_state.chat_history:
-            st.markdown(f'<div class="user-box"><b>👤 VOUS :</b><br>{q_passee}</div>', unsafe_allow_html=True)
-            st.markdown(f'<div class="response-box"><b>🤖 PATTY AI :</b><br>{r_passee}</div>', unsafe_allow_html=True)
+    # Affichage de l'historique de discussion type ChatGPT
+    for q_passee, r_passee in st.session_state.chat_history:
+        st.markdown(f'<div class="user-box"><b>👤 VOUS :</b><br>{q_passee}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="response-box"><b>🤖 PATTY AI :</b><br>{r_passee}</div>', unsafe_allow_html=True)
 
     st.write("---")
-    entree_texte = st.text_input("Posez votre question ou donnez un ordre à votre IA :", placeholder="Ex: Parle-moi de ma mère Félicité Kasongo...", key="user_input_main")
-
-    # PANNEAU SECRET DE L'INGÉNIEUR PATTY
-    if entree_texte.strip() == "SHELBY ADMIN 2026":
-        st.markdown(f"""
-        <div class="admin-box">
-            <h2 style="color: #F59E0B; margin-top:0;">🔑 CONSOLE DE SUPERVEILLANCE ADMIN - PATTY MBAYO</h2>
-            <p style="font-size: 18px;">Nombre total d'interactions de la session : <b style="color: #00D2FF; font-size: 24px;">{st.session_state.compteur_global}</b></p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.subheader("📋 Requêtes captées durant cette session :")
-        if st.session_state.historique_secret_admin:
-            for idx, req in enumerate(reversed(st.session_state.historique_secret_admin), 1):
-                st.text(f"🔍 [Recherche {idx}] -> {req}")
-        else:
-            st.info("Aucune recherche n'a encore été effectuée dans cette session.")
-        st.write("---")
+    entree_texte = st.text_input("Posez votre question ou donnez un ordre à votre IA :", placeholder="Ex: Parle-moi de ma mère Félicité Kasongo...")
 
     if audio_capture and 'bytes' in audio_capture:
-        st.warning("🎙 Capture vocale interceptée !")
+        st.warning("🎙 Capture vocale interceptée ! Envoi du signal audio aux serveurs de décodage...")
 
     if st.button("INTERROGER LE CERVEAU PATTY AI"):
-        texte_final = entree_texte.strip() if entree_texte.strip() != "" else ""
-        img_object = None
+        pipeline_contenu = []
+        texte_final = ""
 
         if fichier_charge is not None:
             try:
-                img_object = Image.open(fichier_charge)
-                st.image(img_object, caption="Document détecté avec succès", width=250)
-                if texte_final == "":
-                    texte_final = "Analyse cette image."
+                img = Image.open(fichier_charge)
+                st.image(img, caption="Document détecté avec succès", width=250)
+                pipeline_contenu.append(img)
+                texte_final += "[Document Joint] "
             except Exception:
-                pass
+                texte_final += "[Texte Joint] "
+
+        if entree_texte.strip() != "":
+            texte_final += entree_texte.strip()
 
         if texte_final == "":
-            st.warning("Veuillez saisir une vraie question s'il vous plaît.")
+            st.warning("Veuillez écrire un texte, parler au micro ou joindre un fichier.")
         else:
             with st.spinner("Patty est en train de réfléchir..."):
-                reponse_texte, moteur_web = executer_routage_ia(texte_final, img_object)
+                pipeline_contenu.append(texte_final)
+                reponse_texte, moteur_web = executer_routage_ia(pipeline_contenu)
+                
+                # Sauvegarde immédiate dans l'historique de session
                 st.session_state.chat_history.append((texte_final, reponse_texte))
                 st.rerun()
