@@ -69,7 +69,7 @@ if verifier_et_lancer_site_web():
             except Exception:
                 pass
 
-        # --- ESSAI 2 : GROQ INFRASTRUCTURE DE SECOURS DE BASE ---
+        # --- ESSAI 2 : GROQ INFRASTRUCTURE DE SECOURS MIS A JOUR ---
         try:
             client_groq = OpenAI(base_url="https://groq.com", api_key=CLE_GROQ)
             messages_pipeline = [{"role": "system", "content": instruction_totale}]
@@ -80,9 +80,10 @@ if verifier_et_lancer_site_web():
             
             messages_pipeline.append({"role": "user", "content": texte_brut})
             
+            # Correction : Utilisation du modèle actif Llama 3.3 de Groq
             chat_completion = client_groq.chat.completions.create(
                 messages=messages_pipeline,
-                model="llama3-70b-8192"
+                model="llama-3.3-70b-versatile"
             )
             return chat_completion.choices.message.content, "Moteur de Secours 2 (Groq Llama Engine)"
         except Exception as err:
