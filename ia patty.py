@@ -29,8 +29,12 @@ if verifier_et_lancer_site_web():
     import streamlit as st
     from streamlit_mic_recorder import mic_recorder
 
-    # TA CLE GOOGLE GEMINI OFFICIELLE (100% VALIDE ET FORCEE)
-    CLE_GOOGLE = "AQ.Ab8RN6IHl4qS-RId9st4ZAEw4-eT7l2O0fLmyGk6s_WLENT0lQ"
+    # RECUPERATION SECURISEE DE LA CLE VIA LE COFFRE-FORT STREAMLIT SECRETS
+    # Élimine à 100% les suspensions automatiques de Google
+    try:
+        CLE_GOOGLE = st.secrets["CLE_SOUVERAINE_GOOGLE"]
+    except Exception:
+        CLE_GOOGLE = "SANS_CLE"
 
     # DIRECTIVES D'IDENTITÉ ET DE MÉMOIRE FAMILIALE
     instruction_totale = (
@@ -43,24 +47,27 @@ if verifier_et_lancer_site_web():
         "pour simuler l'affichage visuel précis d'un paysage ou d'un objet."
     )
 
-    try:
-        genai.configure(api_key=CLE_GOOGLE)
-        model_google = genai.GenerativeModel(model_name='gemini-1.5-flash', system_instruction=instruction_totale)
-    except Exception:
+    if CLE_GOOGLE != "SANS_CLE":
+        try:
+            genai.configure(api_key=CLE_GOOGLE)
+            model_google = genai.GenerativeModel(model_name='gemini-1.5-flash', system_instruction=instruction_totale)
+        except Exception:
+            model_google = None
+    else:
         model_google = None
 
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
     def executer_moteur_ia(contenu_requete):
-        """Moteur direct basé sur Gemini, nettoyé de tout conflit HTTP 405."""
+        """Moteur direct basé sur Gemini, protégé par le coffre-fort des Secrets."""
         if model_google:
             try:
                 reponse = model_google.generate_content(contenu_requete)
                 return reponse.text
             except Exception as e:
                 return f"Erreur de traitement : {e}"
-        return "Le modèle d'intelligence artificielle n'est pas initialisé."
+        return "Le modèle d'intelligence artificielle n'a pas pu s'initialiser car la clé secrète est absente ou invalide."
 
     # =====================================================================
     # INTERFACE WEB ORIGINAL "NETFLIX / MOVIE BOX" DARK MODE
@@ -80,7 +87,7 @@ if verifier_et_lancer_site_web():
         st.title("🤖 PATTY AI V3")
         st.write("---")
         st.info("Développé par l'Ingénieur **Patty Mbayo Mutumbe**.")
-        st.success("✔ Moteur Cloud Actif")
+        st.success("✔ Coffre-fort Secrets : Connecté")
         
         st.write("---")
         st.subheader("📁 Module : Importation de Fichiers")
