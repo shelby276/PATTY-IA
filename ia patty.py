@@ -55,7 +55,7 @@ if verifier_et_lancer_site_web():
         st.session_state.chat_history = []
 
     def executer_moteur_universel(contenu_pipeline):
-        texte_brut = contenu_pipeline[-1] if isinstance(contenu_requete := contenu_pipeline[-1], str) else "Analyse d'image"
+        texte_brut = contenu_pipeline[-1] if isinstance(contenu_pipeline[-1], str) else "Analyse d'image"
         
         # --- ESSAI 1 : GOOGLE GEMINI (VOTRE CLÉ) ---
         if model_final:
@@ -65,7 +65,7 @@ if verifier_et_lancer_site_web():
             except Exception:
                 pass
 
-        # --- ESSAI 2 : GROQ NETWORK (VOTRE CLÉ DE SECOURS CORRIGÉE) ---
+        # --- ESSAI 2 : GROQ NETWORK (CORRECTION FORCEE DU MODELE) ---
         try:
             client_groq = OpenAI(base_url="https://groq.com", api_key=CLE_GROQ)
             messages_pipeline = [{"role": "system", "content": instruction_totale}]
@@ -76,10 +76,10 @@ if verifier_et_lancer_site_web():
             
             messages_pipeline.append({"role": "user", "content": texte_brut})
             
-            # Correction cruciale : Passage au modèle actif et stable de Groq
+            # Correction : Utilisation du modèle de secours standard accepté en méthode POST
             chat_completion = client_groq.chat.completions.create(
                 messages=messages_pipeline,
-                model="llama-3.3-70b-versatile"
+                model="llama3-8b-8192"
             )
             return chat_completion.choices.message.content
         except Exception as err:
@@ -149,5 +149,5 @@ if verifier_et_lancer_site_web():
             with st.spinner("Patty V4 est en train de réfléchir..."):
                 pipeline_contenu.append(texte_final)
                 reponse_texte = executer_moteur_universel(pipeline_contenu)
-                st.session_state.chat_history.append((texte_final, reponse_texte))
+                st.session_state.chat_history.append((texte_final, r_passee := reponse_texte))
                 st.rerun()
