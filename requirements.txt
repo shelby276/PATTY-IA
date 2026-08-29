@@ -1,6 +1,5 @@
 streamlit
-numpy
-scikit-learn
-google-generativeai
-openai
 streamlit-mic-recorder
+google-genai
+openai
+pillow
