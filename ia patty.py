@@ -69,7 +69,7 @@ if verifier_et_lancer_site_web():
             except Exception:
                 pass
 
-        # --- ESSAI 2 : GROQ INFRASTRUCTURE (FICHE LLAMA ANTI-PANNE) ---
+        # --- ESSAI 2 : GROQ INFRASTRUCTURE (CORRECTION CHIRURGICALE DE L'URL) ---
         try:
             client_groq = OpenAI(base_url="https://groq.com", api_key=CLE_GROQ)
             messages_pipeline = [{"role": "system", "content": instruction_totale}]
@@ -120,9 +120,12 @@ if verifier_et_lancer_site_web():
     st.subheader("Plateforme de traitement sémantique dotée de mémoire et d'un routeur anti-panne")
     st.write("---")
 
-    for q_passee, r_passee in st.session_state.chat_history:
-        st.markdown(f'<div class="user-box"><b>👤 VOUS :</b><br>{q_passee}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="response-box"><b>🤖 PATTY AI :</b><br>{r_passee}</div>', unsafe_allow_html=True)
+    # Zone d'affichage dynamique de l'historique
+    cadre_discussion = st.container()
+    with cadre_discussion:
+        for q_passee, r_passee in st.session_state.chat_history:
+            st.markdown(f'<div class="user-box"><b>👤 VOUS :</b><br>{q_passee}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="response-box"><b>🤖 PATTY AI :</b><br>{r_passee}</div>', unsafe_allow_html=True)
 
     st.write("---")
     entree_texte = st.text_input("Posez votre question ou donnez un ordre à votre IA :", placeholder="Ex: Parle-moi de ma mère Félicité Kasongo...", key="user_input_main")
@@ -153,4 +156,5 @@ if verifier_et_lancer_site_web():
                 pipeline_contenu.append(texte_final)
                 reponse_texte, moteur_web = executer_routage_ia(pipeline_contenu)
                 st.session_state.chat_history.append((texte_final, reponse_texte))
+                st.initial_sidebar_state = "expanded"
                 st.rerun()
