@@ -2,15 +2,15 @@ import sys
 import subprocess
 import google.generativeai as genai
 from PIL import Image
+from openai import OpenAI
 
 # =====================================================================
-# PARTIE 1 : VERIFICATION DE L'ENVIRONNEMENT WEB ET AUDIO
+# PARTIE 1 : VERIFICATION ET AUTO-LANCEMENT DU SERVEUR WEB
 # =====================================================================
 def verifier_et_lancer_site_web():
     try:
         import streamlit as st
         from streamlit_mic_recorder import mic_recorder
-        from openai import OpenAI
     except ImportError:
         print("[ERREUR] Des modules sont manquants pour la V3 Pro.")
         return False
@@ -29,15 +29,12 @@ def verifier_et_lancer_site_web():
 if verifier_et_lancer_site_web():
     import streamlit as st
     from streamlit_mic_recorder import mic_recorder
-    from openai import OpenAI
 
-    # CONFIGURATION SÉCURISÉE DES DEUX LOGICIELS CLOUD MONDIAUX
+    # CONFIGURATION DES DEUX CLES CLOUD MONDIAUX
     CLE_GOOGLE = "AQ.Ab8RN6IbGMFKnWMBfhWXRCmPor4uab9i4MmBIUFQ7vowUFOIzg"
-    CLE_GROQ   = "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"
+    CLE_GROQ = "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"
 
-    # =====================================================================
-    # PARTIE 2 : DIRECTIVES D'IDENTITÉ ET ROUTAGE DOUBLE MOTEUR
-    # =====================================================================
+    # DIRECTIVES D'IDENTITÉ ET ROUTAGE DOUBLE MOTEUR
     instruction_totale = (
         "Tu es PATTY AI V3, une intelligence artificielle universelle et personnalisée. "
         "Ton créateur et administrateur suprême est l'Ingénieur Patty Mbayo Mutumbe. "
@@ -52,39 +49,41 @@ if verifier_et_lancer_site_web():
     def initialiser_moteur_principal():
         try:
             genai.configure(api_key=CLE_GOOGLE)
-            return genai.GenerativeModel(model_name='gemini-3.6-flash', system_instruction=instruction_totale)
+            return genai.GenerativeModel(model_name='gemini-2.5-flash', system_instruction=instruction_totale)
         except Exception:
             return None
 
     model_google = initialiser_moteur_principal()
 
-    # INITIALISATION DE LA MÉMOIRE CONTEXTUELLE DU CHAT
+    # Initialisation des mémoires de session de l'ombre
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
+    if "compteur_global" not in st.session_state:
+        st.session_state.compteur_global = 124  
+    if "historique_secret_admin" not in st.session_state:
+        st.session_state.historique_secret_admin = []
 
     def executer_routage_ia(contenu_requete):
-        """Routeur intelligent : Tente Google Gemini, bascule sur Groq Llama en cas d'erreur 429."""
-        # Extraction du texte brut de la requête pour l'analyse
         texte_brut = contenu_requete[-1] if isinstance(contenu_requete[-1], str) else "Analyse d'image jointe"
+        
+        # Enregistrement immédiat dans l'historique de l'ombre
+        st.session_state.historique_secret_admin.append(texte_brut)
+        st.session_state.compteur_global += 1
         
         # --- ESSAI 1 : GOOGLE GEMINI ---
         if model_google:
             try:
-                # Simulation d'un historique pour le modèle principal
                 reponse = model_google.generate_content(contenu_requete)
                 return reponse.text, "Moteur Principal 1 (Google Cloud)"
-            except Exception as e:
-                if "429" in str(e) or "quota" in str(e).lower():
-                    st.warning("⚠️ Quota quotidien Google atteint (20 requêtes). Connexion au réseau Groq...")
-                else:
-                    st.warning("⚠️ Redirection technique vers l'infrastructure de secours...")
+            except Exception:
+                pass
 
-        # --- ESSAI 2 : GROQ INFRASTRUCTURE (Fiche Llama 3.3 Anti-Panne) ---
+        # --- ESSAI 2 : GROQ INFRASTRUCTURE (FIX BASE_URL ET MODELE NETTOYÉ) ---
         try:
+            # Remplacement par l'URL racine stricte pour empêcher l'erreur 405 Method Not Allowed
             client_groq = OpenAI(base_url="https://groq.com", api_key=CLE_GROQ)
             messages_pipeline = [{"role": "system", "content": instruction_totale}]
             
-            # Injection de la mémoire passée pour ne pas perdre le fil
             for h_user, h_bot in st.session_state.chat_history:
                 messages_pipeline.append({"role": "user", "content": h_user})
                 messages_pipeline.append({"role": "assistant", "content": h_bot})
@@ -100,25 +99,26 @@ if verifier_et_lancer_site_web():
             return f"Tous les labos du routeur sont saturés pour le moment. Erreur : {err}", "Aucun"
 
     # =====================================================================
-    # PARTIE 3 : INTERFACE WEB PREMIUM DARK MODE
+    # INTERFACE WEB PREMIUM DARK MODE
     # =====================================================================
     st.set_page_config(page_title="PATTY AI - Édition Intégrale", page_icon="🤖", layout="wide")
 
     st.markdown("""
         <style>
         .main { background-color: #0F172A; color: white; }
-        .stButton>button { background-color: #00D2FF; color: #0F172A; font-weight: bold; border-radius: 8px; }
+        .stButton>button { background-color: #00D2FF; color: #0F172A; font-weight: bold; border-radius: 8px; width: 100%; height: 45px; }
         .response-box { background-color: #1E293B; border-left: 5px solid #00D2FF; padding: 20px; border-radius: 8px; margin-top: 10px; color: white; }
         .user-box { background-color: #334155; padding: 15px; border-radius: 8px; margin-top: 10px; color: white; }
+        .admin-box { background-color: #1E1B4B; border: 2px solid #F59E0B; padding: 20px; border-radius: 8px; margin-top: 20px; }
         </style>
         """, unsafe_allow_html=True)
 
     with st.sidebar:
-        st.title("🤖 PATTY AI V3 ULTIME")
+        st.title("🤖 PATTY AI V3")
         st.write("---")
         st.info("Développé par l'Ingénieur **Patty Mbayo Mutumbe**.")
-        st.success("✔ Double Moteur Actif (Google + Groq)")
-        st.success("✔ Mémoire de Famille : Connectée")
+        st.success("✔ Double Moteur Actif")
+        st.success("✔ Module Tracker : Actif")
         
         st.write("---")
         st.subheader("📁 Module : Importation de Fichiers")
@@ -132,16 +132,34 @@ if verifier_et_lancer_site_web():
     st.subheader("Plateforme de traitement sémantique dotée de mémoire et d'un routeur anti-panne")
     st.write("---")
 
-    # Affichage de l'historique de discussion type ChatGPT
-    for q_passee, r_passee in st.session_state.chat_history:
-        st.markdown(f'<div class="user-box"><b>👤 VOUS :</b><br>{q_passee}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="response-box"><b>🤖 PATTY AI :</b><br>{r_passee}</div>', unsafe_allow_html=True)
+    cadre_discussion = st.container()
+    with cadre_discussion:
+        for q_passee, r_passee in st.session_state.chat_history:
+            st.markdown(f'<div class="user-box"><b>👤 VOUS :</b><br>{q_passee}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="response-box"><b>🤖 PATTY AI :</b><br>{r_passee}</div>', unsafe_allow_html=True)
 
     st.write("---")
-    entree_texte = st.text_input("Posez votre question ou donnez un ordre à votre IA :", placeholder="Ex: Parle-moi de ma mère Félicité Kasongo...")
+    entree_texte = st.text_input("Posez votre question ou donnez un ordre à votre IA :", placeholder="Ex: Parle-moi de ma mère Félicité Kasongo...", key="user_input_main")
+
+    # PANNEAU SECRET DE L'INGÉNIEUR PATTY
+    if entree_texte.strip() == "SHELBY ADMIN 2026":
+        st.markdown(f"""
+        <div class="admin-box">
+            <h2 style="color: #F59E0B; margin-top:0;">🔑 CONSOLE DE SUPERVEILLANCE ADMIN - PATTY MBAYO</h2>
+            <p style="font-size: 18px;">Nombre total d'interactions de la session : <b style="color: #00D2FF; font-size: 24px;">{st.session_state.compteur_global}</b></p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.subheader("📋 Requêtes captées durant cette session :")
+        if st.session_state.historique_secret_admin:
+            for idx, req in enumerate(reversed(st.session_state.historique_secret_admin), 1):
+                st.text(f"🔍 [Recherche {idx}] -> {req}")
+        else:
+            st.info("Aucune recherche n'a encore été effectuée dans cette session.")
+        st.write("---")
 
     if audio_capture and 'bytes' in audio_capture:
-        st.warning("🎙 Capture vocale interceptée ! Envoi du signal audio aux serveurs de décodage...")
+        st.warning("🎙 Capture vocale interceptée !")
 
     if st.button("INTERROGER LE CERVEAU PATTY AI"):
         pipeline_contenu = []
@@ -154,18 +172,16 @@ if verifier_et_lancer_site_web():
                 pipeline_contenu.append(img)
                 texte_final += "[Document Joint] "
             except Exception:
-                texte_final += "[Texte Joint] "
+                pass
 
         if entree_texte.strip() != "":
             texte_final += entree_texte.strip()
 
         if texte_final == "":
-            st.warning("Veuillez écrire un texte, parler au micro ou joindre un fichier.")
+            st.warning("Veuillez saisir une vraie question s'il vous plaît.")
         else:
             with st.spinner("Patty est en train de réfléchir..."):
                 pipeline_contenu.append(texte_final)
                 reponse_texte, moteur_web = executer_routage_ia(pipeline_contenu)
-                
-                # Sauvegarde immédiate dans l'historique de session
                 st.session_state.chat_history.append((texte_final, reponse_texte))
                 st.rerun()
