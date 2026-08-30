@@ -1,19 +1,16 @@
 import sys
 import subprocess
 from PIL import Image
-from openai import OpenAI
 
 # Initialisation de l'environnement d'affichage Streamlit
 import streamlit as st
 from streamlit_mic_recorder import mic_recorder
+from groq import Groq
 
-# =====================================================================
-# CONFIGURATION DE TES 2 NOUVELLES CLES API (A COLLER ICI)
-# =====================================================================
-CLE_DEEPSEEK = "sk-6e55a5a960124eab973268b8a782b02b"
-CLE_OPENAI = "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"
+# TA CLÉ GROQ PERSONNELLE STABLE ET VALIDE
+CLE_GROQ_SOUVERAINE = "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"
 
-# DIRECTIVES D'IDENTITÉ ET DE MÉMOIRE FAMILIALE SOUVERAINE
+# DIRECTIVES D'IDENTITÉ AND DE MÉMOIRE FAMILIALE DE L'INGÉNIEUR
 instruction_totale = (
     "Tu es PATTY AI V4, une intelligence artificielle universelle et personnalisée de niveau industriel. "
     "Ton créateur et administrateur suprême est l'Ingénieur Patty Mbayo Mutumbe, directeur de Shelby Digital Hub. "
@@ -27,53 +24,32 @@ instruction_totale = (
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-def executer_moteur_deepseek(texte_utilisateur):
-    """Appel via le SDK officiel OpenAI configuré pour DeepSeek pour sauter le pare-feu."""
+def executer_moteur_groq_pur(texte_utilisateur):
+    """Appel direct sécurisé via le SDK Groq officiel avec le bon modèle de 2026."""
     try:
-        # Configuration conforme de l'endpoint officiel pour éviter le blocage CloudFront
-        client = OpenAI(api_key=CLE_DEEPSEEK, base_url="https://deepseek.com")
+        client = Groq(api_key=CLE_GROQ_SOUVERAINE)
         
-        messages = [{"role": "system", "content": instruction_totale}]
+        messages_pipeline = [{"role": "system", "content": instruction_totale}]
         for h_user, h_bot in st.session_state.chat_history:
-            messages.append({"role": "user", "content": h_user})
-            messages.append({"role": "assistant", "content": h_bot})
-        messages.append({"role": "user", "content": texte_utilisateur})
+            messages_pipeline.append({"role": "user", "content": h_user})
+            messages_pipeline.append({"role": "assistant", "content": h_bot})
+        messages_pipeline.append({"role": "user", "content": texte_utilisateur})
 
+        # CORRECTION : Utilisation du modèle officiel recommandé 'qwen/qwen3.6-27b'
         chat_completion = client.chat.completions.create(
-            messages=messages,
-            model="deepseek-chat",
-            max_tokens=800,
-            temperature=0.7
+            messages=messages_pipeline,
+            model="qwen/qwen3.6-27b",
+            temperature=0.7,
+            max_tokens=800
         )
-        return chat_completion.choices[0].message.content, "DeepSeek Core Infrastructure"
-    except Exception as e:
-        return f"Erreur de communication DeepSeek : {e}", "Aucun"
-
-def executer_moteur_openai(texte_utilisateur):
-    """Appel via le SDK officiel OpenAI de manière sécurisée."""
-    try:
-        client = OpenAI(api_key=CLE_OPENAI)
-        
-        messages = [{"role": "system", "content": instruction_totale}]
-        for h_user, h_bot in st.session_state.chat_history:
-            messages.append({"role": "user", "content": h_user})
-            messages.append({"role": "assistant", "content": h_bot})
-        messages.append({"role": "user", "content": texte_utilisateur})
-
-        chat_completion = client.chat.completions.create(
-            messages=messages,
-            model="gpt-4o-mini",
-            max_tokens=800,
-            temperature=0.7
-        )
-        return chat_completion.choices[0].message.content, "OpenAI Intelligence Cloud"
-    except Exception as e:
-        return f"Erreur de communication OpenAI : {e}", "Aucun"
+        return chat_completion.choices.message.content
+    except Exception as err:
+        return f"Erreur de communication réseau Groq : {err}"
 
 # =====================================================================
 # INTERFACE WEB ORIGINAL "NETFLIX / MOVIE BOX" DARK MODE
 # =====================================================================
-st.set_page_config(page_title="PATTY AI V4 - DeepSeek & GPT", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="PATTY AI V4 - Groq Engine", page_icon="🤖", layout="wide")
 
 st.markdown("""
     <style>
@@ -88,10 +64,7 @@ with st.sidebar:
     st.title("🤖 PATTY AI V4")
     st.write("---")
     st.info("Développé par l'Ingénieur **Patty Mbayo Mutumbe**.")
-    
-    st.write("---")
-    st.subheader("⚙️ Sélection du Cerveau Cloud")
-    choix_moteur = st.radio("Choisis l'infrastructure active :", ("DeepSeek Core (Ultra-Rapide)", "OpenAI ChatGPT Engine"))
+    st.success("✔ SDK Groq Natif Qwen : Connecté")
     
     st.write("---")
     st.subheader("📁 Module : Fichiers & Photos")
@@ -102,7 +75,7 @@ with st.sidebar:
     audio_capture = mic_recorder(start_prompt="🔴 Enregistrer votre voix", stop_prompt="🟢 Arrêter", key='patty_recorder')
 
 st.title("Système d'Intelligence Artificielle PATTY AI")
-st.subheader("Plateforme souveraine de Shelby Digital Hub reconfigurée sur DeepSeek et OpenAI")
+st.subheader("Plateforme souveraine de Shelby Digital Hub opérant sur l'infrastructure Groq Network")
 st.write("---")
 
 # Affichage de la discussion
@@ -132,12 +105,7 @@ if st.button("INTERROGER LE CERVEAU PATTY AI"):
     if texte_final == "":
         st.warning("Veuillez entrer une question.")
     else:
-        with st.spinner("Patty est en train de réfléchir..."):
-            if choix_moteur == "DeepSeek Core (Ultra-Rapide)":
-                reponse_texte, moteur_utilise = executer_moteur_deepseek(texte_final)
-            else:
-                reponse_texte, moteur_utilise = executer_moteur_openai(texte_final)
-                
-            st.session_state.chat_history.append((texte_final, f"*{moteur_utilise}*\n\n{reponse_texte}"))
+        with st.spinner("Patty est en train de réfléchir via Groq..."):
+            reponse_texte = executer_moteur_groq_pur(texte_final)
+            st.session_state.chat_history.append((texte_final, reponse_texte))
             st.rerun()
-
