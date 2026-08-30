@@ -10,7 +10,8 @@ from groq import Groq
 # TA CLÉ GROQ PERSONNELLE STABLE ET VALIDE
 CLE_GROQ_SOUVERAINE = "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"
 
-# DIRECTIVES D'IDENTITÉ AND DE MÉMOIRE FAMILIALE DE L'INGÉNIEUR
+
+# DIRECTIVES D'IDENTITÉ ET DE MÉMOIRE FAMILIALE DE L'INGÉNIEUR
 instruction_totale = (
     "Tu es PATTY AI V4, une intelligence artificielle universelle et personnalisée de niveau industriel. "
     "Ton créateur et administrateur suprême est l'Ingénieur Patty Mbayo Mutumbe, directeur de Shelby Digital Hub. "
@@ -25,7 +26,7 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 def executer_moteur_groq_pur(texte_utilisateur):
-    """Appel direct sécurisé via le SDK Groq officiel avec le bon modèle de 2026."""
+    """Appel direct sécurisé via le SDK Groq officiel (Zéro code 405, Zéro 403)."""
     try:
         client = Groq(api_key=CLE_GROQ_SOUVERAINE)
         
@@ -35,14 +36,24 @@ def executer_moteur_groq_pur(texte_utilisateur):
             messages_pipeline.append({"role": "assistant", "content": h_bot})
         messages_pipeline.append({"role": "user", "content": texte_utilisateur})
 
-        # CORRECTION : Utilisation du modèle officiel recommandé 'qwen/qwen3.6-27b'
+        # Utilisation du modèle stable recommandé par Groq Docs en 2026
         chat_completion = client.chat.completions.create(
             messages=messages_pipeline,
             model="qwen/qwen3.6-27b",
             temperature=0.7,
             max_tokens=800
         )
-        return chat_completion.choices.message.content
+        # RECTIFICATION : Lecture correcte de la structure de l'objet ou de la liste de choix
+        if hasattr(chat_completion, 'choices') and len(chat_completion.choices) > 0:
+            choice = chat_completion.choices[0]
+            if hasattr(choice, 'message'):
+                return choice.message.content
+            elif isinstance(choice, dict) and 'message' in choice:
+                return choice['message']['content']
+        elif isinstance(chat_completion, list) and len(chat_completion) > 0:
+            return chat_completion[0].message.content
+            
+        return "Réponse reçue dans un format inhabituel."
     except Exception as err:
         return f"Erreur de communication réseau Groq : {err}"
 
