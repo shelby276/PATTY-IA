@@ -1,5 +1,6 @@
 import sys
 import subprocess
+import google.generativeai as genai
 from PIL import Image
 
 # =====================================================================
@@ -10,7 +11,7 @@ def verifier_et_lancer_site_web():
         import streamlit as st
         from streamlit_mic_recorder import mic_recorder
     except ImportError:
-        print("[ERREUR] Des modules sont manquants.")
+        print("[ERREUR] Des modules sont manquants pour la V3 Pro.")
         return False
 
     try:
@@ -20,7 +21,7 @@ def verifier_et_lancer_site_web():
     except ImportError:
         pass
 
-    print("=== CONFIGURATION DE PATTY AI V4 SOUVERAINE ===")
+    print("=== CONFIGURATION DE PATTY AI V4 REEL ===")
     subprocess.Popen([sys.executable, "-m", "streamlit", "run", sys.argv])
     return False
 
@@ -28,64 +29,45 @@ if verifier_et_lancer_site_web():
     import streamlit as st
     from streamlit_mic_recorder import mic_recorder
 
+    # Récupération de la clé depuis le coffre-fort sécurisé
+    try:
+        CLE_GOOGLE = st.secrets["AQ.Ab8RN6LvORDecj1GtBVcCMB3BOLRVoQX0WR8NZpBVuuNK4eE1g"]
+    except Exception:
+        CLE_GOOGLE = "AQ.Ab8RN6LvORDecj1GtBVcCMB3BOLRVoQX0WR8NZpBVuuNK4eE1g"
+
+    # DIRECTIVES D'IDENTITÉ ET DE MÉMOIRE FAMILIALE
+    instruction_totale = (
+        "Tu es PATTY AI V3, une intelligence artificielle universelle et personnalisée. "
+        "Ton créateur et administrateur suprême est l'Ingénieur Patty Mbayo Mutumbe, directeur de Shelby Digital Hub. "
+        "Tu possèdes une mémoire familiale intégrée : "
+        "1. Son père s'appelle Gilbert Mbayo. S'il apparaît en photo ou en texte, salue son autorité avec un vibrant hommage. "
+        "2. Sa mère s'appelle Félicité Kasongo. Salue son nom avec le plus grand respect en tant que mère de ton créateur. "
+        "3. Si l'utilisateur te demande de générer ou montrer une photo, décris magnifiquement l'image demandée avec du Markdown "
+        "pour simuler l'affichage visuel précis d'un paysage ou d'un objet."
+    )
+
+    # Initialisation du vrai modèle Gemini si la clé secrète existe
+    if CLE_GOOGLE != "SANS_CLE":
+        try:
+            genai.configure(api_key=CLE_GOOGLE)
+            model_google = genai.GenerativeModel(model_name='gemini-4.5-flash', system_instruction=instruction_totale)
+        except Exception:
+            model_google = None
+    else:
+        model_google = None
+
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
-    def executer_moteur_interne_local(texte_utilisateur):
-        """Moteur décentralisé souverain autonome (0% API, 100% stable)."""
-        req = texte_utilisateur.upper()
-        
-        # 1. Traitement de la mémoire sacrée de la famille
-        if "GILBERT" in req or "PERE" in req:
-            return (
-                "🫡 **Hommage solennel de PATTY AI V4 :** Je salue l'autorité suprême et respectable "
-                "de **M. Gilbert Mbayo**, le père de mon créateur et administrateur suprême, l'Ingénieur Patty Mbayo Mutumbe."
-            )
-            
-        if "FELICITE" in req or "KASONGO" in req or "MERE" in req:
-            return (
-                "❤️ **Respect absolu de PATTY AI V4 :** Je salue avec la plus grande déférence "
-                "**Maman Félicité Kasongo**, la mère de mon créateur. Que le respect le plus profond lui soit accordé."
-            )
-            
-        if "PATTY" in req or "CREATEUR" in req or "ADMINISTRATEUR" in req:
-            return (
-                "👑 **Rapport de protocole :** Je suis sous les ordres uniques de l'**Ingénieur Patty Mbayo Mutumbe**, "
-                "Directeur Général de *Shelby Digital Hub*."
-            )
-            
-        if "PHOTO" in req or "GENERE" in req or "IMAGE" in req:
-            return (
-                "🌄 **Visualisation matricielle :** Voici la description haute définition demandée par l'administrateur :\n\n"
-                "*[Markdown Visual Engine] Un magnifique paysage de Kinshasa au coucher du soleil depuis Ngaliema, "
-                "avec le fleuve Congo scintillant sous des teintes orangées et violettes, symbolisant l'essor de la tech en RDC.*"
-            )
-
-        # 2. Réponses contextuelles d'ingénierie et de courtoisie
-        if "BONJOUR" in req or "SALUT" in req:
-            return (
-                "👋 Bonjour ! Je suis **PATTY AI V4**, la plateforme de traitement sémantique souveraine de *Shelby Digital Hub*. "
-                "Mon système est entièrement initialisé en local et prêt à recevoir vos requêtes d'ingénierie."
-            )
-            
-        if "SNEL" in req:
-            return (
-                "⚡ **Dossier SNEL Connect :** Le système de centralisation et de paiement Mobile Money est structurellement validé. "
-                "Le MVP est prêt pour le déploiement sur clé USB en attente de la validation finale du modèle bancable par M. Christopher Mukoka."
-            )
-            
-        if "MULTIVERSES" in req or "METEO" in req:
-            return (
-                "🍿 **Dossier Multiverses (Météo/Pigeon) :** Le complexe multiservice (Espace de jeux vidéo PS5, Bar, Terrasse) "
-                "est virtuellement modélisé. Son système informatique de caisse centralisée anti-fraude est prêt à être déployé."
-            )
-
-        # Réponse générique intelligente standard
-        return (
-            f"📥 **Message reçu par le Hub :** J'ai bien enregistré votre requête concernant : *'{texte_utilisateur}'*. "
-            f"Le moteur local de Shelby Digital Hub confirme sa réception. "
-            f"Que souhaitez-vous que l'Ingénieur Patty Mbayo Mutumbe configure sur cette section ?"
-        )
+    def executer_moteur_ia(contenu_requete):
+        """Vrai moteur d'inférence intelligent basé sur Google Gemini."""
+        if model_google:
+            try:
+                reponse = model_google.generate_content(contenu_requete)
+                return reponse.text
+            except Exception as e:
+                return f"Erreur de traitement de l'API Google : {e}"
+        return "Le modèle d'IA n'a pas pu démarrer car aucune clé valide n'a été trouvée dans le coffre-fort des Secrets."
 
     # =====================================================================
     # INTERFACE WEB ORIGINAL "NETFLIX / MOVIE BOX" DARK MODE
@@ -96,17 +78,16 @@ if verifier_et_lancer_site_web():
         <style>
         .main { background-color: #0F172A; color: white; }
         .stButton>button { background-color: #00D2FF; color: #0F172A; font-weight: bold; border-radius: 8px; width: 100%; height: 45px; }
-        .response-box { background-color: #1E293B; border-left: 5px solid #00D2FF; padding: 20px; border-radius: 8px; margin-top: 10px; color: #10B981; font-family: monospace; }
+        .response-box { background-color: #1E293B; border-left: 5px solid #00D2FF; padding: 20px; border-radius: 8px; margin-top: 10px; color: white; }
         .user-box { background-color: #334155; padding: 15px; border-radius: 8px; margin-top: 10px; color: white; }
         </style>
         """, unsafe_allow_html=True)
 
     with st.sidebar:
-        st.title("🤖 PATTY AI V4")
+        st.title("🤖 PATTY AI V3")
         st.write("---")
         st.info("Développé par l'Ingénieur **Patty Mbayo Mutumbe**.")
-        st.success("✔ Cerveau Local Souverain : Actif")
-        st.success("✔ Mode Zéro-Panne API : Forcé")
+        st.success("✔ Vrai Cerveau Google : Activé")
         
         st.write("---")
         st.subheader("📁 Module : Importation de Fichiers")
@@ -117,7 +98,7 @@ if verifier_et_lancer_site_web():
         audio_capture = mic_recorder(start_prompt="🔴 Enregistrer votre voix", stop_prompt="🟢 Arrêter", key='patty_recorder')
 
     st.title("Système d'Intelligence Artificielle PATTY AI")
-    st.subheader("Plateforme de traitement sémantique souveraine propulsée par Shelby Digital Hub")
+    st.subheader("Plateforme de traitement sémantique dotée de mémoire familiale")
     st.write("---")
 
     for q_passee, r_passee in st.session_state.chat_history:
@@ -131,10 +112,17 @@ if verifier_et_lancer_site_web():
         st.warning("🎙 Capture vocale interceptée !")
 
     if st.button("INTERROGER LE CERVEAU PATTY AI"):
+        pipeline_contenu = []
         texte_final = ""
 
         if fichier_charge is not None:
-            texte_final += "[Document Joint] "
+            try:
+                img = Image.open(fichier_charge)
+                st.image(img, caption="Document détecté avec succès", width=250)
+                pipeline_contenu.append(img)
+                texte_final += "[Document Joint] "
+            except Exception:
+                pass
 
         if entree_texte.strip() != "":
             texte_final += entree_texte.strip()
@@ -142,7 +130,8 @@ if verifier_et_lancer_site_web():
         if texte_final == "":
             st.warning("Veuillez saisir une vraie question s'il vous plaît.")
         else:
-            with st.spinner("Patty V4 traite votre demande en local..."):
-                reponse_texte = executer_moteur_interne_local(texte_final)
+            with st.spinner("Patty est en train de réfléchir..."):
+                pipeline_contenu.append(texte_final)
+                reponse_texte = executer_moteur_ia(pipeline_contenu)
                 st.session_state.chat_history.append((texte_final, reponse_texte))
                 st.rerun()
