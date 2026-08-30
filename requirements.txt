@@ -1,5 +1,4 @@
 streamlit
 streamlit-mic-recorder
-google-generativeai
-openai
+google-genai
 pillow
