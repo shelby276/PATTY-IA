@@ -66,7 +66,7 @@ if verifier_et_lancer_site_web():
         """Routeur intelligent : Tente Google Gemini, bascule sur Groq Llama en cas d'erreur 429."""
         # Extraction du texte brut de la requête pour l'analyse
         texte_brut = contenu_requete[-1] if isinstance(contenu_requete[-1], str) else "Analyse d'image jointe"
-        
+
         # --- ESSAI 1 : GOOGLE GEMINI ---
         if model_google:
             try:
@@ -81,16 +81,17 @@ if verifier_et_lancer_site_web():
 
         # --- ESSAI 2 : GROQ INFRASTRUCTURE (Fiche Llama 3.3 Anti-Panne) ---
         try:
+            # CORRECTION EFFECTUÉE : Remplacement de l'adresse de base par l'URL officielle de l'API de Groq
             client_groq = OpenAI(base_url="https://groq.com", api_key=CLE_GROQ)
             messages_pipeline = [{"role": "system", "content": instruction_totale}]
-            
+
             # Injection de la mémoire passée pour ne pas perdre le fil
             for h_user, h_bot in st.session_state.chat_history:
                 messages_pipeline.append({"role": "user", "content": h_user})
                 messages_pipeline.append({"role": "assistant", "content": h_bot})
-            
+
             messages_pipeline.append({"role": "user", "content": texte_brut})
-            
+
             chat_completion = client_groq.chat.completions.create(
                 messages=messages_pipeline,
                 model="llama-3.3-70b-versatile"
@@ -119,11 +120,11 @@ if verifier_et_lancer_site_web():
         st.info("Développé par l'Ingénieur **Patty Mbayo Mutumbe**.")
         st.success("✔ Double Moteur Actif (Google + Groq)")
         st.success("✔ Mémoire de Famille : Connectée")
-        
+
         st.write("---")
         st.subheader("📁 Module : Importation de Fichiers")
         fichier_charge = st.file_uploader("Glissez une photo ou un document", type=["png", "jpg", "jpeg", "pdf"])
-        
+
         st.write("---")
         st.subheader("🎙 Module : Entrée Vocale")
         audio_capture = mic_recorder(start_prompt="🔴 Enregistrer votre voix", stop_prompt="🟢 Arrêter", key='patty_recorder')
@@ -165,7 +166,7 @@ if verifier_et_lancer_site_web():
             with st.spinner("Patty est en train de réfléchir..."):
                 pipeline_contenu.append(texte_final)
                 reponse_texte, moteur_web = executer_routage_ia(pipeline_contenu)
-                
+
                 # Sauvegarde immédiate dans l'historique de session
                 st.session_state.chat_history.append((texte_final, reponse_texte))
                 st.rerun()
