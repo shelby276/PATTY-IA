@@ -52,7 +52,7 @@ if verifier_et_lancer_site_web():
     def initialiser_moteur_principal():
         try:
             genai.configure(api_key=CLE_GOOGLE)
-            return genai.GenerativeModel(model_name='gemini-1.6-flash', system_instruction=instruction_totale)
+            return genai.GenerativeModel(model_name='gemini-2.6-flash', system_instruction=instruction_totale)
         except Exception:
             return None
 
