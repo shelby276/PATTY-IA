@@ -1,9 +1,9 @@
 import sys
 import subprocess
 from PIL import Image
-import requests
+from openai import OpenAI
 
-# Initialisation de l'environnement d'affichage
+# Initialisation de l'environnement d'affichage Streamlit
 import streamlit as st
 from streamlit_mic_recorder import mic_recorder
 
@@ -28,58 +28,47 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 def executer_moteur_deepseek(texte_utilisateur):
-    """Appel direct POST natif sur l'infrastructure DeepSeek Cloud."""
-    url = "https://deepseek.com"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {CLE_DEEPSEEK}"
-    }
-    # Reconstruction de la discussion
-    messages = [{"role": "system", "content": instruction_totale}]
-    for h_user, h_bot in st.session_state.chat_history:
-        messages.append({"role": "user", "content": h_user})
-        messages.append({"role": "assistant", "content": h_bot})
-    messages.append({"role": "user", "content": texte_utilisateur})
-
-    payload = {
-        "model": "deepseek-chat",
-        "messages": messages,
-        "temperature": 0.7,
-        "stream": False
-    }
+    """Appel via le SDK officiel OpenAI configuré pour DeepSeek pour sauter le pare-feu."""
     try:
-        reponse = requests.post(url, json=payload, headers=headers, timeout=15)
-        if reponse.status_code == 200:
-            return reponse.json()["choices"][0]["message"]["content"], "DeepSeek-V3 Engine"
-        return f"Erreur DeepSeek (Code {reponse.status_code}) : {reponse.text}", "Aucun"
+        # Configuration conforme de l'endpoint officiel pour éviter le blocage CloudFront
+        client = OpenAI(api_key=CLE_DEEPSEEK, base_url="https://deepseek.com")
+        
+        messages = [{"role": "system", "content": instruction_totale}]
+        for h_user, h_bot in st.session_state.chat_history:
+            messages.append({"role": "user", "content": h_user})
+            messages.append({"role": "assistant", "content": h_bot})
+        messages.append({"role": "user", "content": texte_utilisateur})
+
+        chat_completion = client.chat.completions.create(
+            messages=messages,
+            model="deepseek-chat",
+            max_tokens=800,
+            temperature=0.7
+        )
+        return chat_completion.choices[0].message.content, "DeepSeek Core Infrastructure"
     except Exception as e:
-        return f"Échec de connexion DeepSeek : {e}", "Aucun"
+        return f"Erreur de communication DeepSeek : {e}", "Aucun"
 
 def executer_moteur_openai(texte_utilisateur):
-    """Appel direct POST natif sur l'infrastructure OpenAI ChatGPT (Dernière génération)."""
-    url = "https://openai.com"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {CLE_OPENAI}"
-    }
-    messages = [{"role": "system", "content": instruction_totale}]
-    for h_user, h_bot in st.session_state.chat_history:
-        messages.append({"role": "user", "content": h_user})
-        messages.append({"role": "assistant", "content": h_bot})
-    messages.append({"role": "user", "content": texte_utilisateur})
-
-    payload = {
-        "model": "gpt-4o-mini",  # Modèle haute performance optimisé pour la rapidité
-        "messages": messages,
-        "temperature": 0.7
-    }
+    """Appel via le SDK officiel OpenAI de manière sécurisée."""
     try:
-        reponse = requests.post(url, json=payload, headers=headers, timeout=15)
-        if reponse.status_code == 200:
-            return reponse.json()["choices"][0]["message"]["content"], "OpenAI Intelligence Engine"
-        return f"Erreur OpenAI (Code {reponse.status_code}) : {reponse.text}", "Aucun"
+        client = OpenAI(api_key=CLE_OPENAI)
+        
+        messages = [{"role": "system", "content": instruction_totale}]
+        for h_user, h_bot in st.session_state.chat_history:
+            messages.append({"role": "user", "content": h_user})
+            messages.append({"role": "assistant", "content": h_bot})
+        messages.append({"role": "user", "content": texte_utilisateur})
+
+        chat_completion = client.chat.completions.create(
+            messages=messages,
+            model="gpt-4o-mini",
+            max_tokens=800,
+            temperature=0.7
+        )
+        return chat_completion.choices[0].message.content, "OpenAI Intelligence Cloud"
     except Exception as e:
-        return f"Échec de connexion OpenAI : {e}", "Aucun"
+        return f"Erreur de communication OpenAI : {e}", "Aucun"
 
 # =====================================================================
 # INTERFACE WEB ORIGINAL "NETFLIX / MOVIE BOX" DARK MODE
@@ -151,3 +140,4 @@ if st.button("INTERROGER LE CERVEAU PATTY AI"):
                 
             st.session_state.chat_history.append((texte_final, f"*{moteur_utilise}*\n\n{reponse_texte}"))
             st.rerun()
+
