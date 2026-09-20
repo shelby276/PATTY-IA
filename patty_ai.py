@@ -16,11 +16,14 @@ GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "")
 
 # Modèles : texte seul -> rapide et stable / avec image -> seul modèle vision
 # disponible chez Groq actuellement (marqué "preview" par Groq lui-même,
-# peut changer sans préavis, comme le modèle précédent).
+# peut changer sans préavis).
 MODELE_TEXTE = "openai/gpt-oss-120b"
 MODELE_VISION = "qwen/qwen3.8-27b"
 
 HISTORIQUE_FICHIER = "patty_historique.json"
+LIMITE_MESSAGES_GRATUITS = 3
+NUMERO_WHATSAPP = "243987167271"  # format international, sans le +
+NUMERO_MOBILE_MONEY = "0987167271"
 
 instruction_totale = (
     "Tu es Patty AI, une intelligence artificielle personnalisée développée par "
@@ -53,6 +56,9 @@ def sauver_historique(historique):
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = charger_historique()
+
+if "messages_utilises" not in st.session_state:
+    st.session_state.messages_utilises = 0
 
 
 def image_vers_base64(img: Image.Image) -> str:
@@ -150,6 +156,18 @@ with st.sidebar:
         sauver_historique([])
         st.rerun()
 
+    st.write("---")
+    st.markdown("**💛 Soutenir Patty AI**")
+    st.caption(f"Messages gratuits : {st.session_state.messages_utilises}/{LIMITE_MESSAGES_GRATUITS}")
+    st.markdown(
+        f"""
+        Passe Premium ou soutiens le projet :
+        - 📱 **Mobile Money** : {NUMERO_MOBILE_MONEY}
+        - 💳 **Visa** : contacte-moi pour arranger le paiement carte
+        - [Contacter sur WhatsApp](https://wa.me/{NUMERO_WHATSAPP})
+        """
+    )
+
 st.markdown('<div class="hero-title">Patty AI</div>', unsafe_allow_html=True)
 st.markdown('<div class="hero-sub">Assistant intelligent — Shelby Digital Hub</div>', unsafe_allow_html=True)
 
@@ -180,9 +198,16 @@ if st.button("Envoyer"):
 
     if texte_final == "":
         st.warning("Écris une question avant d'envoyer.")
+    elif st.session_state.messages_utilises >= LIMITE_MESSAGES_GRATUITS:
+        st.error(
+            f"Tu as atteint la limite de {LIMITE_MESSAGES_GRATUITS} messages gratuits. "
+            f"Passe Premium via Mobile Money ({NUMERO_MOBILE_MONEY}) ou Visa — "
+            f"[contacte-moi sur WhatsApp](https://wa.me/{NUMERO_WHATSAPP}) pour continuer."
+        )
     else:
         with st.spinner("Patty réfléchit..."):
             reponse_texte = executer_moteur_groq(texte_final, image_pil=img_object)
             st.session_state.chat_history.append((texte_final, reponse_texte))
+            st.session_state.messages_utilises += 1
             sauver_historique(st.session_state.chat_history)
             st.rerun()
